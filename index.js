@@ -15,12 +15,13 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const c = JSON.parse(body);
-        // Deduplicate by challan number
-        if (!challans.find(x => x.no === c.no)) {
-          challans.unshift(c);
-          console.log('New challan received:', c.no, c.client);
+        const idx = challans.findIndex(x => x.no === c.no);
+        if (idx > -1) {
+          challans[idx] = c; // Update existing
+          console.log('Challan updated:', c.no);
         } else {
-          console.log('Duplicate ignored:', c.no);
+          challans.unshift(c); // Add new
+          console.log('New challan received:', c.no, c.client);
         }
         res.writeHead(200, {'Content-Type':'application/json'});
         res.end(JSON.stringify({ok:true, total: challans.length}));
