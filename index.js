@@ -1,4 +1,5 @@
 const http = require('http');
+
 let challans = [];
 
 const server = http.createServer((req, res) => {
@@ -7,20 +8,46 @@ const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
 
+  // Send challan from staff to server
   if (req.method === 'POST' && req.url === '/send') {
     let body = '';
     req.on('data', d => body += d);
     req.on('end', () => {
       try {
         const c = JSON.parse(body);
-        if (!challans.find(x => x.id === c.id)) challans.unshift(c);
-        res.writeHead(200); res.end(JSON.stringify({ok:true}));
+        // Deduplicate by challan number
+        if (!challans.find(x => x.no === c.no)) {
+          challans.unshift(c);
+          console.log('New challan received:', c.no, c.client);
+        } else {
+          console.log('Duplicate ignored:', c.no);
+        }
+        res.writeHead(200, {'Content-Type':'application/json'});
+        res.end(JSON.stringify({ok:true, total: challans.length}));
       } catch(e) { res.writeHead(400); res.end('Error'); }
     });
-  } else if (req.method === 'GET' && req.url === '/fetch') {
+  }
+
+  // Fetch all challans for admin
+  else if (req.method === 'GET' && req.url === '/fetch') {
     res.writeHead(200, {'Content-Type':'application/json'});
     res.end(JSON.stringify(challans));
-  } else { res.writeHead(404); res.end(); }
+  }
+
+  // Clear all challans (admin use only)
+  else if (req.method === 'GET' && req.url === '/clear') {
+    challans = [];
+    res.writeHead(200, {'Content-Type':'application/json'});
+    res.end(JSON.stringify({ok:true, message:'All challans cleared'}));
+  }
+
+  // Health check
+  else if (req.method === 'GET' && req.url === '/') {
+    res.writeHead(200, {'Content-Type':'text/plain'});
+    res.end('ICB Server is running. Challans: ' + challans.length);
+  }
+
+  else { res.writeHead(404); res.end('Not found'); }
 });
 
-server.listen(3000, () => console.log('ICB Server running on 3000'));
+server.listen(3000, () => console.log('ICB Server running on port 3000'));
